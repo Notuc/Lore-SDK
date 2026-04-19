@@ -1,0 +1,25 @@
+{
+  "name": "@lore/provider-ollama",
+  "version": "0.1.0",
+  "description": "Ollama local model provider for the Lore SDK",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "echo 'linting @lore/provider-ollama...'"
+  },
+  "dependencies": {
+    "@lore/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "*",
+    "typescript": "*"
+  }
+}
