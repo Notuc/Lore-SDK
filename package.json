@@ -1,11 +1,11 @@
 {
   "name": "Lore-SDK",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "AI gaming library ",
   "main": "index.js",
   "scripts": {
     "build": "pnpm -r run build",
-    "test": "pnpm -r run test",
+    "test": "vitest run",
     "dev": "pnpm --filter @lore/sidecar run dev",
     "clean": "pnpm -r run clean",
     "lint": "pnpm -r run lint"
