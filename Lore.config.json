@@ -1,0 +1,17 @@
+{
+  "provider": "ollama",
+  "model": "llama3.1",
+  "fallback": "anthropic",
+  "modules": ["npc"],
+  "local": {
+    "baseUrl": "http://localhost:11434",
+    "port": 7433
+  },
+  "cloud": {
+    "apiKey": ""
+  },
+  "memory": {
+    "persist": true,
+    "maxHistory": 20
+  }
+}

@@ -34,10 +34,12 @@ class MockProvider implements ILoreProvider {
 }
 
 //  Tests 
-
 describe("ILoreProvider", () => {
+
+  // Create a mock implementation of the provider to test against
   const provider: ILoreProvider = new MockProvider();
 
+  // Test: complete() should return a properly shaped response object
   it("has the correct name", () => {
     expect(provider.name).toBe("mock");
   });
@@ -55,6 +57,7 @@ describe("ILoreProvider", () => {
     expect(typeof res.text).toBe("string");
   });
 
+  // Test: stream() should return an async iterable of string tokens
   it("stream() yields individual string tokens", async () => {
     const req: LoreRequest = {
       messages: [{ role: "user", content: "hello" }],
@@ -70,6 +73,7 @@ describe("ILoreProvider", () => {
     expect(tokens.join("")).toBe("Hello from mock stream");
   });
 
+  // Test: health() should return a boolean indicating provider status
   it("health() returns a boolean", async () => {
     const result = await provider.health();
     expect(typeof result).toBe("boolean");
