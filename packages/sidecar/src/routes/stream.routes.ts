@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────
 // stream.routes.ts
 // POST /stream — streams tokens via Server-Sent Events.
 // Used for NPC dialogue so text appears word by word
@@ -8,7 +7,6 @@
 //   data: <token>\n\n        — each token as it arrives
 //   data: [DONE]\n\n         — signals end of stream
 //   data: [ERROR] <msg>\n\n  — if something goes wrong
-// ─────────────────────────────────────────────────────────────
 
 import type { FastifyInstance } from "fastify";
 import type { ILoreProvider, LoreMessage } from "@lore/core";

@@ -1,9 +1,6 @@
-// ─────────────────────────────────────────────────────────────
-// queue.ts
 // Simple async concurrency queue.
 // Limits simultaneous provider calls so Ollama/Anthropic
 // don't get hammered when multiple NPCs speak at once.
-// ─────────────────────────────────────────────────────────────
 
 type Task<T> = () => Promise<T>;
 

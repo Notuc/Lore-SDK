@@ -1,5 +1,3 @@
-// ─────────────────────────────────────────────────────────────
-// build.ts
 // Bundles the sidecar into standalone binaries using pkg.
 // Run: pnpm --filter @lore/sidecar build:binary
 //
@@ -7,7 +5,6 @@
 //   bin/lore-sidecar-win.exe   — Windows x64
 //   bin/lore-sidecar-mac       — macOS x64
 //   bin/lore-sidecar-linux     — Linux x64
-// ─────────────────────────────────────────────────────────────
 
 import { execSync } from "child_process";
 import { mkdirSync }  from "fs";

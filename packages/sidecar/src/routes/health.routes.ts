@@ -1,9 +1,7 @@
-// ─────────────────────────────────────────────────────────────
 // health.routes.ts
 // GET /health — returns sidecar and provider status.
 // Called by engine SDKs on startup to verify the sidecar
 // is running and which provider is active.
-// ─────────────────────────────────────────────────────────────
 
 import type { FastifyInstance } from "fastify";
 import type { ILoreProvider } from "@lore/core";
