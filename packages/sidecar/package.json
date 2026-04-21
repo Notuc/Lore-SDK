@@ -2,16 +2,20 @@
   "name": "@lore/sidecar",
   "version": "0.1.0",
   "description": "Lore REST sidecar server — runs locally alongside your game engine",
-  "main": "./dist/index.js",
+  "main": "./dist/server.js",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "start": "node dist/index.js",
+    "build": "rm -rf dist && tsc",
+    "dev": "node --watch dist/server.js",
+    "dev:ts": "tsc && node --watch dist/server.js",
+    "start": "node dist/server.js",
+    "build:binary": "pnpm build && node dist/build.js",
     "lint": "echo 'linting @lore/sidecar...'"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.0",
     "@lore/core": "workspace:*",
+    "@lore/provider-anthropic": "workspace:*",
+    "@lore/provider-ollama": "workspace:*",
     "fastify": "^4.26.0"
   },
   "devDependencies": {
@@ -20,7 +24,7 @@
     "typescript": "*"
   },
   "pkg": {
-    "targets": ["node20-win-x64", "node20-mac-x64", "node20-linux-x64"],
+    "targets": ["node20-win-x64", "node20-macos-x64", "node20-linux-x64"],
     "outputPath": "bin"
   }
 }

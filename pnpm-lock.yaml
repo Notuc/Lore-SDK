@@ -84,6 +84,12 @@ importers:
       '@lore/core':
         specifier: workspace:*
         version: link:../core
+      '@lore/provider-anthropic':
+        specifier: workspace:*
+        version: link:../provider-anthropic
+      '@lore/provider-ollama':
+        specifier: workspace:*
+        version: link:../provider-ollama
       fastify:
         specifier: ^4.26.0
         version: 4.29.1
