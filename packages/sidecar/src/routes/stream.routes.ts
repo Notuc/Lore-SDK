@@ -1,4 +1,3 @@
-// stream.routes.ts
 // POST /stream — streams tokens via Server-Sent Events.
 // Used for NPC dialogue so text appears word by word
 // in the game UI rather than waiting for the full response.

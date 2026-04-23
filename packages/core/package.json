@@ -6,22 +6,24 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import":  "./dist/index.js",
+      "import": "./dist/index.js",
       "require": "./dist/index.js",
-      "types":   "./dist/index.d.ts"
+      "types": "./dist/index.d.ts"
     }
   },
   "scripts": {
     "build": "rm -rf dist && tsc",
-    "dev":   "tsc --watch",
-    "lint":  "echo 'linting @lore/core...'"
+    "dev": "tsc --watch",
+    "lint": "echo 'linting @lore/core...'"
   },
   "dependencies": {
     "@lore/provider-anthropic": "workspace:*",
-    "@lore/provider-ollama":    "workspace:*"
+    "@lore/provider-ollama": "workspace:*",
+    "level": "^10.0.0"
   },
   "devDependencies": {
+    "@types/level": "^8.0.0",
     "@types/node": "*",
-    "typescript":  "*"
+    "typescript": "*"
   }
 }

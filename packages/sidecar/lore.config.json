@@ -1,14 +1,10 @@
 {
   "provider": "ollama",
-  "model": "mistral",
-  "fallback": "anthropic",
+  "model": "llama3.2",
   "modules": ["npc"],
   "local": {
     "baseUrl": "http://localhost:11434",
     "port": 7433
-  },
-  "cloud": {
-    "apiKey": ""
   },
   "memory": {
     "persist": true,

@@ -1,3 +1,4 @@
+/*
 // Reads and validates lore.config.json.
 // Every other part of the library calls loadConfig() to get
 // the current configuration — never reads the file directly.
@@ -144,6 +145,127 @@ function validateConfig(raw: unknown, filePath: string): LoreConfig {
   }
 
   // Merge with defaults so optional fields are always present
+  return {
+    ...DEFAULT_CONFIG,
+    ...(raw as LoreConfig),
+    local:  { ...DEFAULT_CONFIG.local,  ...(cfg["local"]  as object | undefined) },
+    memory: { ...DEFAULT_CONFIG.memory, ...(cfg["memory"] as object | undefined) },
+  };
+}
+*/  
+
+import { readFileSync, existsSync } from "fs";
+import { resolve } from "path";
+import { LoreError } from "./types.js";
+
+export type ProviderName = "anthropic" | "ollama";
+
+export type LoreConfig = {
+  provider:  ProviderName;
+  model?:    string;
+  fallback?: ProviderName;
+  modules?:  string[];
+  local?: {
+    baseUrl?: string;
+    port?:    number;
+  };
+  cloud?: {
+    apiKey?: string;
+  };
+  memory?: {
+    persist?:    boolean;
+    maxHistory?: number;
+  };
+};
+
+export const DEFAULT_CONFIG: LoreConfig = {
+  provider: "ollama",
+  local: {
+    baseUrl: "http://localhost:11434",
+    port:    7433,
+  },
+  memory: {
+    persist:    true,
+    maxHistory: 20,
+  },
+};
+
+export function loadConfig(configPath?: string): LoreConfig {
+  const filePath = configPath ?? findConfigFile();
+
+  if (!filePath) {
+    console.log(
+      "[Lore] No lore.config.json found. Using defaults (Ollama on localhost:11434)."
+    );
+    return DEFAULT_CONFIG;
+  }
+
+  let raw: string;
+  try {
+    raw = readFileSync(filePath, "utf-8");
+  } catch {
+    throw new LoreError("UNKNOWN", `[Lore] Could not read config file at ${filePath}`);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new LoreError("UNKNOWN", `[Lore] lore.config.json is not valid JSON.`);
+  }
+
+  return validateConfig(parsed, filePath);
+}
+
+function findConfigFile(): string | null {
+  // Search multiple locations — covers running from repo root,
+  // from packages/sidecar, or from packages/sidecar/dist
+  const candidates = [
+    resolve(process.cwd(), "lore.config.json"),
+    resolve(process.cwd(), "..", "lore.config.json"),
+    resolve(process.cwd(), "..", "..", "lore.config.json"),
+    resolve(process.cwd(), "..", "..", "..", "lore.config.json"),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      console.log(`[Lore] Found config at ${candidate}`);
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function validateConfig(raw: unknown, filePath: string): LoreConfig {
+  if (typeof raw !== "object" || raw === null) {
+    throw new LoreError("UNKNOWN", `[Lore] lore.config.json must be a JSON object. Check ${filePath}`);
+  }
+
+  const cfg = raw as Record<string, unknown>;
+
+  if (!cfg["provider"]) {
+    throw new LoreError("UNKNOWN", `[Lore] lore.config.json is missing required field "provider".`);
+  }
+
+  const provider = cfg["provider"] as string;
+  if (provider !== "ollama" && provider !== "anthropic") {
+    throw new LoreError("UNKNOWN", `[Lore] Unknown provider "${provider}". Valid: "ollama", "anthropic".`);
+  }
+
+  const cloud    = cfg["cloud"] as Record<string, unknown> | undefined;
+  const fallback = cfg["fallback"] as string | undefined;
+
+  if (
+    (provider === "anthropic" || fallback === "anthropic") &&
+    !cloud?.["apiKey"]
+  ) {
+    throw new LoreError(
+      "AUTH_FAILED",
+      `[Lore] Anthropic requires an API key. Add "cloud": { "apiKey": "sk-ant-..." } to lore.config.json.`
+    );
+  }
+
   return {
     ...DEFAULT_CONFIG,
     ...(raw as LoreConfig),
