@@ -1,0 +1,17 @@
+{
+    "name": "Lore.Editor",
+    "rootNamespace": "Lore.Editor",
+    "references": [
+        "Lore.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": []
+}

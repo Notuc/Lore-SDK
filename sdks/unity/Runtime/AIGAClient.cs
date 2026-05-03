@@ -1,6 +1,3 @@
-// HTTP client for talking to the Lore sidecar.
-// Wraps UnityWebRequest — game loop never blocks.
-
 using System;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,7 +17,6 @@ namespace Lore
             _timeoutSeconds = timeoutSeconds;
         }
 
-        // Health check 
         public async Task<bool> IsHealthyAsync()
         {
             try
@@ -30,20 +26,16 @@ namespace Lore
                 await SendAsync(req);
                 return req.responseCode == 200;
             }
-            catch
-            {
-                return false;
-            }
+            catch { return false; }
         }
 
-        //Speak (full response) 
         public async Task<DialogueReply> SpeakAsync(
             NPCDefinition npc,
             string        playerMessage,
             GameContext   context = null,
             SpeakOptions  options = null)
         {
-            var body = new SpeakRequest
+            var body  = new SpeakRequest
             {
                 npc           = npc,
                 playerMessage = playerMessage,
@@ -51,8 +43,8 @@ namespace Lore
                 options       = options
             };
 
-            var json     = JsonUtility.ToJson(body);
-            var bytes    = Encoding.UTF8.GetBytes(json);
+            var json  = JsonUtility.ToJson(body);
+            var bytes = Encoding.UTF8.GetBytes(json);
 
             using var req = new UnityWebRequest($"{_baseUrl}/npc/speak", "POST");
             req.uploadHandler   = new UploadHandlerRaw(bytes);
@@ -68,18 +60,14 @@ namespace Lore
             return JsonUtility.FromJson<DialogueReply>(req.downloadHandler.text);
         }
 
-        // Stream speak
-        // Calls stream endpoint and invokes onToken for each token.
-        // onReply is called with the full DialogueReply when done.
         public async Task StreamSpeakAsync(
-            NPCDefinition    npc,
-            string           playerMessage,
-            Action<string>   onToken,
-            Action<DialogueReply> onReply = null,
-            GameContext      context = null,
-            SpeakOptions     options = null)
+            NPCDefinition         npc,
+            string                playerMessage,
+            Action<string>        onToken,
+            Action<DialogueReply> onReply  = null,
+            GameContext           context  = null,
+            SpeakOptions         options  = null)
         {
-            // Set stream:true in options
             options        ??= new SpeakOptions();
             options.stream   = true;
 
@@ -99,15 +87,11 @@ namespace Lore
             req.SetRequestHeader("Content-Type", "application/json");
             req.SetRequestHeader("Accept", "text/event-stream");
             req.timeout         = _timeoutSeconds;
-
-            // Use SSEDownloadHandler to process tokens as they arrive
-            var sseHandler = new SSEDownloadHandler(onToken, onReply);
-            req.downloadHandler = sseHandler;
+            req.downloadHandler = new SSEDownloadHandler(onToken, onReply);
 
             await SendAsync(req);
         }
 
-        // Set NPC flag 
         public async Task SetFlagAsync(string npcId, string key, object value)
         {
             var body  = $"{{\"key\":\"{key}\",\"value\":{ToJson(value)}}}";
@@ -122,7 +106,6 @@ namespace Lore
             await SendAsync(req);
         }
 
-        // Clear NPC memory ─
         public async Task ClearMemoryAsync(string npcId)
         {
             using var req = UnityWebRequest.Delete($"{_baseUrl}/npc/{npcId}/memory");
@@ -130,12 +113,10 @@ namespace Lore
             await SendAsync(req);
         }
 
-        // Helpers 
         private static Task SendAsync(UnityWebRequest req)
         {
             var tcs = new TaskCompletionSource<bool>();
             var op  = req.SendWebRequest();
-
             op.completed += _ =>
             {
                 if (req.result == UnityWebRequest.Result.ConnectionError ||
@@ -144,21 +125,16 @@ namespace Lore
                 else
                     tcs.SetResult(true);
             };
-
             return tcs.Task;
         }
 
-        private static string ToJson(object value)
+        private static string ToJson(object value) => value switch
         {
-            return value switch
-            {
-                bool b   => b.ToString().ToLower(),
-                string s => $"\"{s}\"",
-                _        => value?.ToString() ?? "null"
-            };
-        }
+            bool b   => b.ToString().ToLower(),
+            string s => $"\"{s}\"",
+            _        => value?.ToString() ?? "null"
+        };
 
-        //  Request types 
         [Serializable]
         private class SpeakRequest
         {
@@ -169,8 +145,6 @@ namespace Lore
         }
     }
 
-    // SSE handler 
-    // Processes Server-Sent Events as they stream in.
     public class SSEDownloadHandler : DownloadHandlerScript
     {
         private readonly Action<string>        _onToken;
@@ -188,36 +162,41 @@ namespace Lore
         protected override bool ReceiveData(byte[] data, int dataLength)
         {
             _buffer += Encoding.UTF8.GetString(data, 0, dataLength);
-
-            // Process complete SSE lines
             var lines = _buffer.Split('\n');
-            _buffer   = lines[^1]; // keep incomplete last line
 
-            foreach (var line in lines[..^1])
+            // Keep the last incomplete line in the buffer
+            _buffer = lines[lines.Length - 1];
+
+            for (var i = 0; i < lines.Length - 1; i++)
             {
-                if (!line.StartsWith("data: ")) continue;
+                var line = lines[i];
 
-                var payload = line["data: ".Length..].Trim();
-
-                if (payload == "[DONE]") continue;
-
-                // Check if it's the final reply event
                 if (line.StartsWith("event: reply"))
-                {
-                    var nextLine = ""; // handled by event: reply + data: pattern
-                    if (_onReply != null)
-                    {
-                        try
-                        {
-                            var reply = JsonUtility.FromJson<DialogueReply>(payload);
-                            _onReply(reply);
-                        }
-                        catch { /* (for now) ignore parse errors on final event */ }
-                    }
+                    continue; // next line will be the data
+
+                if (!line.StartsWith("data: "))
                     continue;
+
+                var payload = line.Substring("data: ".Length).Trim();
+
+                if (payload == "[DONE]")
+                    continue;
+
+                // Check if it looks like a full DialogueReply JSON
+                if (payload.StartsWith("{") && _onReply != null)
+                {
+                    try
+                    {
+                        var reply = JsonUtility.FromJson<DialogueReply>(payload);
+                        if (reply != null && !string.IsNullOrEmpty(reply.text))
+                        {
+                            _onReply(reply);
+                            continue;
+                        }
+                    }
+                    catch { /* not a reply object, treat as token */ }
                 }
 
-                // Regular token
                 _onToken?.Invoke(payload.Replace("\\n", "\n"));
             }
 
@@ -225,7 +204,6 @@ namespace Lore
         }
     }
 
-    //  Supporting types 
     [Serializable]
     public class SpeakOptions
     {

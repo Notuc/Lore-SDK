@@ -1,6 +1,3 @@
-// Drag onto any NPC GameObject. Fill in the Inspector.
-// Call Speak() from your dialogue trigger script.
-
 using System;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -8,52 +5,42 @@ using UnityEngine.Events;
 
 namespace Lore
 {
+    [AddComponentMenu("Lore/AIGA NPC")]
     public class AIGANPCComponent : MonoBehaviour
     {
-        // Inspector — NPC Identity 
         [Header("NPC Identity")]
-        public string   npcId;
-        public string   npcName;
-        public string   role;
+        public string npcId;
+        public string npcName;
+        public string role;
 
         [Tooltip("Comma-separated personality traits. e.g. shrewd,warm,street-smart")]
-        public string   personality;
+        public string personality;
 
         [Tooltip("Comma-separated knowledge domains. e.g. trade routes,city gossip")]
-        public string   knowledge;
+        public string knowledge;
 
         [TextArea(2, 4)]
-        public string   backstory;
+        public string backstory;
 
         [Tooltip("formal | rough | mystical | technical | casual")]
-        public string   voiceStyle;
+        public string voiceStyle;
 
-        // Inspector — World Settings 
         [Header("World Settings")]
         [Tooltip("One sentence describing the world. e.g. a medieval fantasy kingdom")]
-        public string   worldSetting;
+        public string worldSetting;
 
         [Tooltip("What technology exists. e.g. swords and magic")]
-        public string   worldTechnology;
+        public string worldTechnology;
 
         [Tooltip("Comma-separated concepts that don't exist. e.g. AI,computers,guns")]
-        public string   worldUnknowns;
+        public string worldUnknowns;
 
-        // Inspector — Events 
         [Header("Events")]
-        [Tooltip("Fires when the NPC replies. Passes the reply text.")]
         public UnityEvent<string>        OnReply;
-
-        [Tooltip("Fires for each streaming token.")]
         public UnityEvent<string>        OnToken;
-
-        [Tooltip("Fires when an error occurs.")]
         public UnityEvent<string>        OnError;
-
-        [Tooltip("Fires when the NPC replies with the full DialogueReply object.")]
         public UnityEvent<DialogueReply> OnDialogueReply;
 
-        // Internal 
         private NPCDefinition _definition;
 
         private void Awake()
@@ -61,12 +48,6 @@ namespace Lore
             _definition = BuildDefinition();
         }
 
-        // Public API 
-
-        /// <summary>
-        /// Send a player message and get the full reply.
-        /// Await this from your dialogue trigger script.
-        /// </summary>
         public async Task<DialogueReply> Speak(
             string      playerMessage,
             GameContext context = null)
@@ -78,7 +59,6 @@ namespace Lore
                 var reply = await AIGAManager.Instance.Client.SpeakAsync(
                     _definition, playerMessage, context
                 );
-
                 OnReply?.Invoke(reply.text);
                 OnDialogueReply?.Invoke(reply);
                 return reply;
@@ -91,11 +71,6 @@ namespace Lore
             }
         }
 
-        /// <summary>
-        /// Stream the NPC reply token by token.
-        /// OnToken fires for each incoming token.
-        /// OnDialogueReply fires with the final reply when done.
-        /// </summary>
         public async Task StreamSpeak(
             string      playerMessage,
             GameContext context = null)
@@ -107,8 +82,8 @@ namespace Lore
                 await AIGAManager.Instance.Client.StreamSpeakAsync(
                     _definition,
                     playerMessage,
-                    token  => OnToken?.Invoke(token),
-                    reply  => OnDialogueReply?.Invoke(reply),
+                    token => OnToken?.Invoke(token),
+                    reply => OnDialogueReply?.Invoke(reply),
                     context
                 );
             }
@@ -119,32 +94,25 @@ namespace Lore
             }
         }
 
-        /// <summary>
-        /// Set a game state flag on this NPC.
-        /// Affects future dialogue responses.
-        /// </summary>
         public async Task SetFlag(string key, object value)
         {
             if (!EnsureManager()) return;
             await AIGAManager.Instance.Client.SetFlagAsync(npcId, key, value);
         }
 
-        /// <summary>
-        /// Wipe this NPC's memory. Use at new game session start.
-        /// </summary>
         public async Task ClearMemory()
         {
             if (!EnsureManager()) return;
             await AIGAManager.Instance.Client.ClearMemoryAsync(npcId);
         }
 
-        // Helpers 
-
         private NPCDefinition BuildDefinition()
         {
             return new NPCDefinition
             {
-                id          = string.IsNullOrEmpty(npcId) ? npcName.ToLower().Replace(" ", "-") : npcId,
+                id          = string.IsNullOrEmpty(npcId)
+                                ? npcName.ToLower().Replace(" ", "-")
+                                : npcId,
                 name        = npcName,
                 role        = role,
                 personality = SplitCSV(personality),
@@ -160,10 +128,21 @@ namespace Lore
             };
         }
 
+        // ── Fixed: TrimEntries not available in Unity's .NET ──
         private static string[] SplitCSV(string csv)
         {
-            if (string.IsNullOrEmpty(csv)) return Array.Empty<string>();
-            return csv.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            if (string.IsNullOrEmpty(csv))
+                return Array.Empty<string>();
+
+            var parts = csv.Split(',');
+            var result = new System.Collections.Generic.List<string>();
+            foreach (var part in parts)
+            {
+                var trimmed = part.Trim();
+                if (!string.IsNullOrEmpty(trimmed))
+                    result.Add(trimmed);
+            }
+            return result.ToArray();
         }
 
         private static bool EnsureManager()
@@ -173,7 +152,7 @@ namespace Lore
 
             Debug.LogError(
                 "[Lore] AIGAManager is not ready. " +
-                "Make sure AIGAManager.prefab is in your scene and the sidecar is running."
+                "Make sure AIGAManager.prefab is in your scene."
             );
             return false;
         }
