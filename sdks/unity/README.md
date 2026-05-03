@@ -6,7 +6,7 @@ AI-powered NPC dialogue for Unity games.
 
 Window → Package Manager → + → Add package from git URL:
 ```
-https://github.com/lore-sdk/lore.git?path=sdks/unity
+https://github.com/Notuc/Lore-SDK.git?path=sdks/unity
 ```
 
 ## Setup
