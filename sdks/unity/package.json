@@ -1,0 +1,12 @@
+{
+  "name": "com.lore.sdk",
+  "version": "0.1.0",
+  "displayName": "Lore SDK",
+  "description": "AI-powered NPC dialogue, quests, and game systems for Unity.",
+  "unity": "2021.3",
+  "author": {
+    "name": "Lore SDK",
+    "url": "https://github.com/lore-sdk/lore"
+  },
+  "dependencies": {}
+}
