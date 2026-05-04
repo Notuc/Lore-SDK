@@ -1,8 +1,5 @@
-// C# mirror of the TypeScript NPCDefinition type.
-// Fill these fields in the Inspector on AIGANPCComponent.
-
 using System;
-using System.Collections.Generic;
+using UnityEngine;
 
 namespace Lore
 {
@@ -17,7 +14,9 @@ namespace Lore
         public string   backstory;
         public string   voiceStyle;
         public NPCWorld world;
-        public Dictionary<string, object> flags = new();
+        // Removed Dictionary<string,object> flags —
+        // JsonUtility cannot serialize Dictionary.
+        // Flags are managed server-side via SetFlag().
     }
 
     [Serializable]

@@ -35,16 +35,14 @@ namespace Lore
             GameContext   context = null,
             SpeakOptions  options = null)
         {
-            var body  = new SpeakRequest
-            {
-                npc           = npc,
-                playerMessage = playerMessage,
-                context       = context,
-                options       = options
-            };
-
-            var json  = JsonUtility.ToJson(body);
+            // serialize each field manually 
+            // JsonUtility cannot serialize nested private classes
+            // or null optional fields correctly.
+            // Build the JSON string directly so we control the output.
+            var json  = BuildSpeakJson(npc, playerMessage, context, options);
             var bytes = Encoding.UTF8.GetBytes(json);
+
+            Debug.Log($"[Lore] Sending: {json}");
 
             using var req = new UnityWebRequest($"{_baseUrl}/npc/speak", "POST");
             req.uploadHandler   = new UploadHandlerRaw(bytes);
@@ -55,7 +53,8 @@ namespace Lore
             await SendAsync(req);
 
             if (req.responseCode != 200)
-                throw new LoreException($"Sidecar error {req.responseCode}: {req.downloadHandler.text}");
+                throw new LoreException(
+                    $"HTTP/1.1 {req.responseCode} — {req.downloadHandler.text}");
 
             return JsonUtility.FromJson<DialogueReply>(req.downloadHandler.text);
         }
@@ -71,15 +70,7 @@ namespace Lore
             options        ??= new SpeakOptions();
             options.stream   = true;
 
-            var body  = new SpeakRequest
-            {
-                npc           = npc,
-                playerMessage = playerMessage,
-                context       = context,
-                options       = options
-            };
-
-            var json  = JsonUtility.ToJson(body);
+            var json  = BuildSpeakJson(npc, playerMessage, context, options);
             var bytes = Encoding.UTF8.GetBytes(json);
 
             using var req = new UnityWebRequest($"{_baseUrl}/npc/speak", "POST");
@@ -94,7 +85,7 @@ namespace Lore
 
         public async Task SetFlagAsync(string npcId, string key, object value)
         {
-            var body  = $"{{\"key\":\"{key}\",\"value\":{ToJson(value)}}}";
+            var body  = $"{{\"key\":\"{key}\",\"value\":{ToJsonValue(value)}}}";
             var bytes = Encoding.UTF8.GetBytes(body);
 
             using var req = new UnityWebRequest($"{_baseUrl}/npc/{npcId}/flag", "POST");
@@ -113,38 +104,185 @@ namespace Lore
             await SendAsync(req);
         }
 
+        // JSON builder
+        // Builds the speak request JSON manually so every field
+        // is serialized correctly regardless of JsonUtility limits.
+
+        private static string BuildSpeakJson(
+            NPCDefinition npc,
+            string        playerMessage,
+            GameContext   context,
+            SpeakOptions  options)
+        {
+            var sb = new StringBuilder();
+            sb.Append("{");
+
+            // npc
+            sb.Append("\"npc\":");
+            sb.Append(BuildNpcJson(npc));
+            sb.Append(",");
+
+            // playerMessage
+            sb.Append($"\"playerMessage\":{JsonString(playerMessage)}");
+
+            // context (optional)
+            if (context != null)
+            {
+                sb.Append(",\"context\":");
+                sb.Append(BuildContextJson(context));
+            }
+
+            // options (optional)
+            if (options != null && (options.stream || !string.IsNullOrEmpty(options.model)))
+            {
+                sb.Append(",\"options\":");
+                sb.Append(BuildOptionsJson(options));
+            }
+
+            sb.Append("}");
+            return sb.ToString();
+        }
+
+        private static string BuildNpcJson(NPCDefinition npc)
+        {
+            var sb = new StringBuilder();
+            sb.Append("{");
+            sb.Append($"\"id\":{JsonString(npc.id)},");
+            sb.Append($"\"name\":{JsonString(npc.name)},");
+            sb.Append($"\"role\":{JsonString(npc.role)},");
+            sb.Append($"\"personality\":{JsonStringArray(npc.personality)},");
+            sb.Append($"\"knowledge\":{JsonStringArray(npc.knowledge)}");
+
+            if (!string.IsNullOrEmpty(npc.backstory))
+                sb.Append($",\"backstory\":{JsonString(npc.backstory)}");
+
+            if (!string.IsNullOrEmpty(npc.voiceStyle))
+                sb.Append($",\"voiceStyle\":{JsonString(npc.voiceStyle)}");
+
+            if (npc.world != null)
+            {
+                sb.Append(",\"world\":");
+                sb.Append(BuildWorldJson(npc.world));
+            }
+
+            sb.Append("}");
+            return sb.ToString();
+        }
+
+        private static string BuildWorldJson(NPCWorld world)
+        {
+            var sb = new StringBuilder();
+            sb.Append("{");
+            sb.Append($"\"setting\":{JsonString(world.setting ?? "")}");
+
+            if (!string.IsNullOrEmpty(world.genre))
+                sb.Append($",\"genre\":{JsonString(world.genre)}");
+
+            if (!string.IsNullOrEmpty(world.technology))
+                sb.Append($",\"technology\":{JsonString(world.technology)}");
+
+            if (world.unknowns != null && world.unknowns.Length > 0)
+                sb.Append($",\"unknowns\":{JsonStringArray(world.unknowns)}");
+
+            sb.Append("}");
+            return sb.ToString();
+        }
+
+        private static string BuildContextJson(GameContext ctx)
+        {
+            var sb = new StringBuilder();
+            sb.Append("{");
+            var first = true;
+
+            void Add(string key, string value)
+            {
+                if (string.IsNullOrEmpty(value)) return;
+                if (!first) sb.Append(",");
+                sb.Append($"\"{key}\":{JsonString(value)}");
+                first = false;
+            }
+
+            void AddInt(string key, int value)
+            {
+                if (value < 0) return; // -1 = not set
+                if (!first) sb.Append(",");
+                sb.Append($"\"{key}\":{value}");
+                first = false;
+            }
+
+            Add("playerMood",  ctx.playerMood);
+            Add("timeOfDay",   ctx.timeOfDay);
+            Add("location",    ctx.location);
+            Add("questActive", ctx.questActive);
+            AddInt("playerGold",  ctx.playerGold);
+            AddInt("playerLevel", ctx.playerLevel);
+
+            sb.Append("}");
+            return sb.ToString();
+        }
+
+        private static string BuildOptionsJson(SpeakOptions opts)
+        {
+            var sb = new StringBuilder();
+            sb.Append("{");
+            sb.Append($"\"stream\":{opts.stream.ToString().ToLower()}");
+
+            if (!string.IsNullOrEmpty(opts.model))
+                sb.Append($",\"model\":{JsonString(opts.model)}");
+
+            if (opts.maxTokens > 0)
+                sb.Append($",\"maxTokens\":{opts.maxTokens}");
+
+            if (opts.temperature > 0)
+                sb.Append($",\"temperature\":{opts.temperature}");
+
+            sb.Append("}");
+            return sb.ToString();
+        }
+
+        // Helpers 
+
+        private static string JsonString(string s)
+        {
+            if (s == null) return "null";
+            return "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+        }
+
+        private static string JsonStringArray(string[] arr)
+        {
+            if (arr == null || arr.Length == 0) return "[]";
+            var sb = new StringBuilder("[");
+            for (var i = 0; i < arr.Length; i++)
+            {
+                if (i > 0) sb.Append(",");
+                sb.Append(JsonString(arr[i]));
+            }
+            sb.Append("]");
+            return sb.ToString();
+        }
+
+        private static string ToJsonValue(object value) => value switch
+        {
+            bool b   => b.ToString().ToLower(),
+            string s => JsonString(s),
+            _        => value?.ToString() ?? "null"
+        };
+
         private static Task SendAsync(UnityWebRequest req)
         {
             var tcs = new TaskCompletionSource<bool>();
-            var op  = req.SendWebRequest();
-            op.completed += _ =>
+            req.SendWebRequest().completed += _ =>
             {
-                if (req.result == UnityWebRequest.Result.ConnectionError ||
-                    req.result == UnityWebRequest.Result.ProtocolError)
+                if (req.result == UnityWebRequest.Result.ConnectionError)
                     tcs.SetException(new LoreException(req.error));
                 else
                     tcs.SetResult(true);
             };
             return tcs.Task;
         }
-
-        private static string ToJson(object value) => value switch
-        {
-            bool b   => b.ToString().ToLower(),
-            string s => $"\"{s}\"",
-            _        => value?.ToString() ?? "null"
-        };
-
-        [Serializable]
-        private class SpeakRequest
-        {
-            public NPCDefinition npc;
-            public string        playerMessage;
-            public GameContext   context;
-            public SpeakOptions  options;
-        }
     }
 
+    // SSE handler
     public class SSEDownloadHandler : DownloadHandlerScript
     {
         private readonly Action<string>        _onToken;
@@ -163,26 +301,17 @@ namespace Lore
         {
             _buffer += Encoding.UTF8.GetString(data, 0, dataLength);
             var lines = _buffer.Split('\n');
-
-            // Keep the last incomplete line in the buffer
             _buffer = lines[lines.Length - 1];
 
             for (var i = 0; i < lines.Length - 1; i++)
             {
                 var line = lines[i];
-
-                if (line.StartsWith("event: reply"))
-                    continue; // next line will be the data
-
-                if (!line.StartsWith("data: "))
-                    continue;
+                if (line.StartsWith("event: reply")) continue;
+                if (!line.StartsWith("data: ")) continue;
 
                 var payload = line.Substring("data: ".Length).Trim();
+                if (payload == "[DONE]") continue;
 
-                if (payload == "[DONE]")
-                    continue;
-
-                // Check if it looks like a full DialogueReply JSON
                 if (payload.StartsWith("{") && _onReply != null)
                 {
                     try
@@ -194,12 +323,11 @@ namespace Lore
                             continue;
                         }
                     }
-                    catch { /* not a reply object, treat as token */ }
+                    catch { }
                 }
 
                 _onToken?.Invoke(payload.Replace("\\n", "\n"));
             }
-
             return true;
         }
     }

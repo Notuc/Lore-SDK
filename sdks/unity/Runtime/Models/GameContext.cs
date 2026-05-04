@@ -2,7 +2,7 @@
 // Build this from your game's current state before calling Speak().
 
 using System;
-using System.Collections.Generic;
+using UnityEngine;
 
 namespace Lore
 {
@@ -12,19 +12,16 @@ namespace Lore
         public string playerMood;
         public string timeOfDay;
         public string location;
-        public int?   playerGold;
-        public int?   playerLevel;
+        public int    playerGold   = -1; // -1 means not set
+        public int    playerLevel  = -1; // -1 means not set
         public string questActive;
-        public Dictionary<string, object> additionalFlags = new();
+        // Removed Dictionary — JsonUtility can't serialize it.
+        // Use SetFlag() for additional flags instead.
     }
 
-    /// <summary>
-    /// Fluent builder for GameContext.
-    /// Makes it easy to construct context from game state.
-    /// </summary>
     public class LoreContextBuilder
     {
-        private readonly GameContext _ctx = new();
+        private readonly GameContext _ctx = new GameContext();
 
         public LoreContextBuilder WithPlayerMood(string mood)
         {
@@ -59,12 +56,6 @@ namespace Lore
         public LoreContextBuilder WithQuest(string questId)
         {
             _ctx.questActive = questId;
-            return this;
-        }
-
-        public LoreContextBuilder WithFlag(string key, object value)
-        {
-            _ctx.additionalFlags[key] = value;
             return this;
         }
 
